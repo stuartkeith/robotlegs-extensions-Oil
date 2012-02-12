@@ -10,6 +10,7 @@ package org.robotlegs.oil.async
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 
+	[Event(name="cancelChange", type="flash.events.Event")]
 	[Event(name="errorChange", type="flash.events.Event")]
 	[Event(name="progressChange", type="flash.events.Event")]
 	[Event(name="resultChange", type="flash.events.Event")]
@@ -33,6 +34,14 @@ package org.robotlegs.oil.async
 		/*============================================================================*/
 		/* Public Properties                                                          */
 		/*============================================================================*/
+
+		protected var _cancel:*;
+
+		[Bindable("cancelChange")]
+		public function get cancel():*
+		{
+			return _cancel;
+		}
 
 		protected var _error:*;
 
@@ -70,6 +79,8 @@ package org.robotlegs.oil.async
 		/* Protected Properties                                                       */
 		/*============================================================================*/
 
+		protected var cancelHandlers:Array = [];
+
 		protected var errorHandlers:Array = [];
 
 		protected var progressHandlers:Array = [];
@@ -82,6 +93,15 @@ package org.robotlegs.oil.async
 		/*============================================================================*/
 		/* Public Functions                                                           */
 		/*============================================================================*/
+
+		public function addCancelHandler(handler:Function):Promise
+		{
+			if (status == CANCELLED)
+				handler(this);
+			else if (status == PENDING)
+				cancelHandlers.push(handler);
+			return this;
+		}
 
 		public function addErrorHandler(handler:Function):Promise
 		{
@@ -117,9 +137,11 @@ package org.robotlegs.oil.async
 			return this;
 		}
 
-		public function cancel():Promise
+		public function handleCancel(value:*):Promise
 		{
+			setCancel(value);
 			setStatus(CANCELLED);
+			handle(cancelHandlers);
 			resetHandlers();
 			return this;
 		}
@@ -176,10 +198,20 @@ package org.robotlegs.oil.async
 
 		protected function resetHandlers():void
 		{
+			cancelHandlers = [];
 			resultHandlers = [];
 			resultProcessors = [];
 			errorHandlers = [];
 			progressHandlers = [];
+		}
+
+		protected function setCancel(value:*):void
+		{
+			if (_cancel != value)
+			{
+				_cancel = value;
+				dispatchEvent(new Event("cancelChange"));
+			}
 		}
 
 		protected function setError(value:*):void
